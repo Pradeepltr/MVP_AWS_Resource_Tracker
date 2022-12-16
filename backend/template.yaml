@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  backend
+
+  Sample SAM Template for backend
+  
+
+Globals:
+  Function:
+    Timeout: 3
+    CodeUri: src/Functions/
+    Runtime: nodejs14.x
+    Architectures:
+      - arm64
+
+Resources:
+  DynamoDbTrack:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: DynamoDB.handler
+      Events:
+        Trigger:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.dynamodb
+              detail-type:
+                - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                  - dynamodb.amazonaws.com
+                eventName:
+                  - CreateTable
+                  - DeleteTable
+      Policies:
+         - DynamoDBCrudPolicy:
+             TableName: !Ref DBTable
+         - AmazonDynamoDBFullAccess
+  
+
+  S3Track:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: S3Track.handler
+      Events:
+        Trigger:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                  - s3.amazonaws.com
+                eventName:
+                  - CreateBucket
+                  - DeleteBucket
+      Policies:
+        - DynamoDBCrudPolicy:
+             TableName: !Ref S3Table
+        - AmazonS3FullAccess
+
+
+  LambdaTrack:
+    Type: AWS::Serverless::Function 
+    Properties:
+      Handler: LambdaTrack.handler
+      Events:
+        Trigger:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.lambda
+              detail-type:
+                - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                  - lambda.amazonaws.com
+                eventName:
+                  - CreateFunction20150331
+                  - DeleteFunction20150331
+      Policies:
+        - DynamoDBCrudPolicy:
+             TableName: !Ref LambdaTable
+        - AWSLambda_FullAccess
+
+
+
+  DBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: DynamoDBTrack
+      AttributeDefinitions:
+        - AttributeName: TableName
+          AttributeType: S
+      KeySchema:
+       - AttributeName: TableName
+         KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+  S3Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: S3Track
+      AttributeDefinitions:
+        - AttributeName: BucketName
+          AttributeType: S
+      KeySchema:
+       - AttributeName: BucketName
+         KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+  LambdaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: LambdaTrack
+      AttributeDefinitions:
+        - AttributeName: FunctionName
+          AttributeType: S
+      KeySchema:
+       - AttributeName: FunctionName
+         KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+
+
